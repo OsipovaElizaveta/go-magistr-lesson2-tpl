@@ -8,11 +8,11 @@ type YamlNodeMeta struct {
 	IsRequired      bool
 	Children        map[string]YamlNodeMeta
 	IsSequence      bool
-	AdditionalCheck func(yaml.Node, yaml.Node, Logger)
+	AdditionalCheck []func(yaml.Node, yaml.Node, Logger)
 }
 
-func GetStringNodeMeta() YamlNodeMeta {
-	return YamlNodeMeta{Tag: "!!str", TypeName: "string"}
+func GetStringNodeMeta(checkEmpty func(yaml.Node, yaml.Node, Logger)) YamlNodeMeta {
+	return YamlNodeMeta{Tag: "!!str", TypeName: "string", AdditionalCheck: []func(yaml.Node, yaml.Node, Logger){checkEmpty}}
 }
 
 func GetIntNodeMeta() YamlNodeMeta {
@@ -33,7 +33,7 @@ func (meta YamlNodeMeta) Required() YamlNodeMeta {
 }
 
 func (meta YamlNodeMeta) WithAdditionalCheck(check func(yaml.Node, yaml.Node, Logger)) YamlNodeMeta {
-	meta.AdditionalCheck = check
+	meta.AdditionalCheck = append(meta.AdditionalCheck, check)
 	return meta
 }
 

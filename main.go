@@ -19,6 +19,10 @@ func main() {
 	if sb.Len() > 0 {
 		fmt.Fprint(os.Stderr, sb.String())
 	}
+
+	fmt.Println("Debug: standard output")
+	fmt.Fprint(os.Stderr, "Debug: stderr output")
+	fmt.Fprint(os.Stdout, "Debug: stdout output")
 }
 
 func mainImpl() (sb strings.Builder) {
@@ -54,40 +58,42 @@ func mainImpl() (sb strings.Builder) {
 		logger.Writeln(0, "More than one root element found")
 	}
 
+	getStringNodeMeta := func() YamlNodeMeta { return GetStringNodeMeta(checkEmpty) }
+
 	checkContainerName := getCheckContainerName()
 	checkImageName := getCheckImageName()
 	checkMemory := getCheckMemory()
 
 	probeMeta := GetObjectNodeMeta("Probe", map[string]YamlNodeMeta{
 		"httpGet": GetObjectNodeMeta("HTTPGetAction", map[string]YamlNodeMeta{
-			"path": GetStringNodeMeta().Required().WithAdditionalCheck(checkRelativePath),
+			"path": getStringNodeMeta().Required().WithAdditionalCheck(checkRelativePath),
 			"port": GetIntNodeMeta().Required().WithAdditionalCheck(checkPort),
 		}).Required(),
 	})
 
 	resourceRequirementMeta := GetObjectNodeMeta("ResourceRequirement", map[string]YamlNodeMeta{
 		"cpu":    GetIntNodeMeta(),
-		"memory": GetStringNodeMeta().WithAdditionalCheck(checkMemory),
+		"memory": getStringNodeMeta().WithAdditionalCheck(checkMemory),
 	})
 
 	visitNode(*root.Content[0], *root.Content[0], GetObjectNodeMeta("root", map[string]YamlNodeMeta{
-		"apiVersion": GetStringNodeMeta().Required(),
-		"kind":       GetStringNodeMeta().Required(),
+		"apiVersion": getStringNodeMeta().Required(),
+		"kind":       getStringNodeMeta().Required(),
 		"metadata": GetObjectNodeMeta("ObjectMeta", map[string]YamlNodeMeta{
-			"name":      GetStringNodeMeta().Required(),
-			"namespace": GetStringNodeMeta(),
+			"name":      getStringNodeMeta().Required(),
+			"namespace": getStringNodeMeta(),
 			"labels":    GetObjectNodeMeta("Object", map[string]YamlNodeMeta{}).WithAdditionalCheck(checkPlainObject),
 		}).Required(),
 		"spec": GetObjectNodeMeta("PodSpec", map[string]YamlNodeMeta{
-			"os": GetStringNodeMeta().ReplaceTypeName("PodOS").WithAdditionalCheck(checkOS),
+			"os": getStringNodeMeta().ReplaceTypeName("PodOS").WithAdditionalCheck(checkOS),
 			"containers": GetSeqNodeMeta("Container[]", map[string]YamlNodeMeta{
 				"containers": GetObjectNodeMeta("Container", map[string]YamlNodeMeta{
-					"name":  GetStringNodeMeta().Required().WithAdditionalCheck(checkContainerName),
-					"image": GetStringNodeMeta().Required().WithAdditionalCheck(checkImageName),
+					"name":  getStringNodeMeta().Required().WithAdditionalCheck(checkContainerName),
+					"image": getStringNodeMeta().Required().WithAdditionalCheck(checkImageName),
 					"ports": GetSeqNodeMeta("ContainerPort[]", map[string]YamlNodeMeta{
 						"ports": GetObjectNodeMeta("ContainerPort", map[string]YamlNodeMeta{
 							"containerPort": GetIntNodeMeta().Required().WithAdditionalCheck(checkPort),
-							"protocol":      GetStringNodeMeta().WithAdditionalCheck(checkProtocol),
+							"protocol":      getStringNodeMeta().WithAdditionalCheck(checkProtocol),
 						}),
 					}),
 					"readinessProbe": probeMeta,
@@ -123,8 +129,8 @@ func visitNode(nameNode yaml.Node, valueNode yaml.Node, meta YamlNodeMeta, logge
 		}
 	}
 
-	if meta.AdditionalCheck != nil {
-		meta.AdditionalCheck(nameNode, valueNode, logger)
+	for _, check := range meta.AdditionalCheck {
+		check(nameNode, valueNode, logger)
 	}
 
 	upperBoundEx := len(valueNode.Content)
@@ -155,8 +161,14 @@ func visitNode(nameNode yaml.Node, valueNode yaml.Node, meta YamlNodeMeta, logge
 	}
 }
 
+func checkEmpty(nameNode yaml.Node, valueNode yaml.Node, logger Logger) {
+	if strings.TrimSpace(valueNode.Value) == "" {
+		logger.Writeln(nameNode.Line, "%v is required", nameNode.Value)
+	}
+}
+
 func checkPlainObject(nameNode yaml.Node, valueNode yaml.Node, logger Logger) {
-	meta := GetStringNodeMeta()
+	meta := GetStringNodeMeta(checkEmpty)
 	for i := 0; i < len(valueNode.Content)-1; i += 2 {
 		childNameNode := valueNode.Content[i]
 
@@ -177,6 +189,10 @@ func getCheckContainerName() func(yaml.Node, yaml.Node, Logger) {
 	regex, _ := regexp.Compile(`^[a-z]+(?:_[a-z]+)*$`)
 
 	return func(nameNode yaml.Node, valueNode yaml.Node, logger Logger) {
+		if strings.TrimSpace(valueNode.Value) == "" {
+			return
+		}
+
 		if !regex.MatchString(valueNode.Value) {
 			logger.Writeln(nameNode.Line, "%v has invalid format '%v'", nameNode.Value, valueNode.Value)
 			return
