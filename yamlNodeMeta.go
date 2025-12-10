@@ -16,7 +16,7 @@ func GetStringNodeMeta(checkEmpty func(yaml.Node, yaml.Node, Logger)) YamlNodeMe
 }
 
 func GetIntNodeMeta() YamlNodeMeta {
-	return YamlNodeMeta{Tag: "!!int", TypeName: "integer"}
+	return YamlNodeMeta{Tag: "!!int", TypeName: "int"}
 }
 
 func GetObjectNodeMeta(typeName string, children map[string]YamlNodeMeta) YamlNodeMeta {

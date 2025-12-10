@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -30,7 +31,7 @@ func mainImpl() (sb strings.Builder) {
 
 	filePath := os.Args[1]
 
-	logger := Logger{&sb, filePath}
+	logger := Logger{&sb, filepath.Base(filePath)}
 
 	if !fileExists(filePath) {
 		logger.Writeln(0, "File not found")
@@ -115,7 +116,7 @@ func visitNode(nameNode yaml.Node, valueNode yaml.Node, meta YamlNodeMeta, logge
 	requiredFields := CreateSet[string]()
 
 	if valueNode.Tag != meta.Tag {
-		logger.Writeln(nameNode.Line, "%v must be type %v", nameNode.Value, meta.TypeName)
+		logger.Writeln(nameNode.Line, "%v must be %v", nameNode.Value, meta.TypeName)
 		return
 	}
 
@@ -169,7 +170,7 @@ func checkPlainObject(nameNode yaml.Node, valueNode yaml.Node, logger Logger) {
 		childNameNode := valueNode.Content[i]
 
 		if valueNode.Content[i+1].Tag != meta.Tag {
-			logger.Writeln(childNameNode.Line, "%v must be type %v", childNameNode.Value, meta.TypeName)
+			logger.Writeln(childNameNode.Line, "%v must be %v", childNameNode.Value, meta.TypeName)
 		}
 	}
 }
