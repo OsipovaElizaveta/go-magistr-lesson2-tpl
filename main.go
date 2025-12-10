@@ -17,12 +17,8 @@ func main() {
 	sb := mainImpl()
 
 	if sb.Len() > 0 {
-		fmt.Fprint(os.Stderr, sb.String())
+		fmt.Print(sb.String())
 	}
-
-	fmt.Println("Debug: standard output")
-	fmt.Fprint(os.Stderr, "Debug: stderr output")
-	fmt.Fprint(os.Stdout, "Debug: stdout output")
 }
 
 func mainImpl() (sb strings.Builder) {
